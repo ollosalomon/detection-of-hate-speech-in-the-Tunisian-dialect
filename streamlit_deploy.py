@@ -8,13 +8,17 @@ import numpy as np
 import streamlit as st  
 import arabert 
 import altair as alt
+from PIL import Image
+import emoji
 
 
 from keras import backend as K
 from tensorflow import keras 
 from keras.utils.vis_utils import plot_model
 
-
+#les differentes metriques
+#les metriques sont définies afin de charger le modele
+#mon bb dani, le modele a été évalué à partir de ces metriques, alors pour le charger il faut forcement ces metriques
 def recall_m(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
@@ -32,14 +36,15 @@ def f1_m(y_true, y_pred):
     recall = recall_m(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
     
-
+#chargement du modele
 new_model = tf.keras.models.load_model('/content/drive/MyDrive/NLP/Deux_classes', custom_objects={'f1':f1_m,
                                     'recall':recall_m,
                                     'precision_m':precision_m},compile=False)
 
-
+#chargement du tokeniseur
 tokenizer = AutoTokenizer.from_pretrained('aubmindlab/bert-base-arabertv02')
 
+#fonction pour pretraiter les entrées (les mots)
 def prepare_data(input_text, tokenizer):
     token = tokenizer.encode_plus(
         input_text,
@@ -53,52 +58,70 @@ def prepare_data(input_text, tokenizer):
         'input_ids': tf.cast(token.input_ids, tf.float64),
         'attention_mask': tf.cast(token.attention_mask, tf.float64)
     }
-
+#fonction pour faire la prediction
 def make_prediction(new_model, processed_data, classes=['normal','hate']):
     probs = new_model.predict(processed_data)[0]
     return classes[np.argmax(probs)]
 
+#les deux fonctions seront utilisées pour le traitement qui va suivre
+
 
 def main():
-	st.title("Sentiment Analysis NLP App")
-	st.subheader("Streamlit Projects")
 
-	menu = ["Home","About"]
+	#st.markdown("<h1 style='text-align: center; color: black;'>Système de détection et classification de discours haineux du dialecte tunisien</h1>", unsafe_allow_html=True)
+	st.markdown("<h1 style='text-align: center; color: black;'>Detection et classification automatique des discours haineux du dialecte Tunisien</h1>", unsafe_allow_html=True)
+
+#automatic detection of hate speech
+
+#	st.markdown("<h2 style='text-align: center; color: black;'>du dialecte tunisien </h2>", unsafe_allow_html=True)
+#menu de l'application (page d'accueil)
+#l'application a deux page (Accueil et A propos)
+
+
+	menu = ["Accueil","À propos"]
 	choice = st.sidebar.selectbox("Menu",menu)
 
-	if choice == "Home":
-		st.subheader("Home")
-		with st.form(key='nlpForm'):
-			raw_text = st.text_area("Enter Text Here")
-			submit_button = st.form_submit_button(label='Analyze')
+#sur le coté gauche de la page d'accueil, il ya la possibilié de choisir la page qu'on veut afficher
+	if choice == "Accueil": #si on choisit la page d'accueil
+		image = Image.open('/content/drive/MyDrive/NLP/emotions.jpg') # l'image qui s'affiche à la page d'accueil
+
+		st.image(image, caption='emotions') #affichage de l'image
+
+		with st.form(key='nlpForm'): #un genre de formulaire avec zone de texte et un boutton de soumission
+			st.write(emoji.emojize('Aimons nous les uns les autres :red_heart: love ',use_aliases=True)) #
+			raw_text = st.text_area("Entrez votre phrase") #zone de texte
+			submit_button = st.form_submit_button(label='Analyser') #boutton de soumission
 
 		# layout
-		col1,col2 = st.columns(2)
-		if submit_button:
+#les resultats seront afichés sur deux colonnes lorsqu'on va cliquer sur le boutton de soumission
+		col1,col2 = st.columns(2) #creation des deux colonnes
+		if submit_button: #si le boutton de soumission est declanché
 
-			with col1:
-				st.info("Results")
-				sentiment = prepare_data(raw_text,tokenizer)#.sentiment
-				result =  make_prediction(new_model, sentiment)
-				st.write(result)
+			with col1: #ce qui doit etre affiché sur la premiere colonne
+				st.info("Resultat") #message affiché comme titre
+				sentiment = prepare_data(raw_text,tokenizer) #fonction de pretraitement
+				result =  make_prediction(new_model, sentiment)#fonction pour la prediction
 
-				# Emoji
 				if result == 'normal':
-					st.markdown("Sentiment:: Positive :smiley: ")
-					st.write("Partagez l'amour autour de vous, un sourire est milles fois mieux qu'une haine :smiley: ")
-				else :
-					st.markdown("Sentiment:: Negative :angry: ")
-					st.write("Partagez l'amour autour de vous, un sourire est milles fois mieux qu'une haine :smiley: ")
-				#else:
-				#	st.markdown("Sentiment:: Neutral 😐 ")
+					st.markdown("Votre phrase est: Neutre :smiley: ")
+				elif result == 'hate':
+					st.markdown("Votre phrase est: haineuse :angry: ")
+				else:
+					st.markdown("Sentiment:: Neutre 😐 ")
 
 
-			with col2:
-				st.info("Astuce")
-				st.write("Partagez l'amour autour de vous, un sourire est milles fois mieux qu'une haine :smiley: ")
+			with col2:#ce qui doit etre affiché sur la deuxieme colonne
+				st.info("Astuce")#message affiché comme titre
+				st.write("Partagez l'amour autour de vous, un sourire vaut mille fois mieux qu'une haine :smiley: ")#message affiché 
 
-	else:
-		st.subheader("Nous détectons le discours haineux avec le deep learing. Notre modèle est basé sur AraBERT.")
+	else: #si on choisit la section A propos
+
+ #message et image à afficher 
+		st.info("Created by Ollo Salomon Pale with Streamlit")
+		fig = Image.open('/content/drive/MyDrive/NLP/photo1.jpg')
+		st.image(fig, caption='ollosalomon@gmail.com Jesus Saves')
+		st.markdown("<h2 style='text-align: center; color: black;'>Ce système permet de détecter et de classifier un discours comme haineux, injurieux ou neutre. Notre modèle est basé sur AraBERT</h2>", unsafe_allow_html=True)
+
 
 
 if __name__ == '__main__':
